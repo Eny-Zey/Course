@@ -3,7 +3,7 @@ import numpy as np
 import nibabel as nib
 from nilearn.image import resample_to_img
 
-SUB_ID = "sub-p019"
+SUB_ID = "sub-p026"
 
 BASE_PATH = "./ds004873"
 OUTPUT_DIR = "./labels"
@@ -28,13 +28,11 @@ CMRO2_MIN_ABS_CHANGE = 0.01   # минимальное значимое абсо
 # ----------------------------------------------------------------------
 # 1. ЗАГРУЗКА ДАННЫХ
 # ----------------------------------------------------------------------
-print(f"Обработка {SUB_ID}...")
 
 # T1w
 t1_path = os.path.join(BASE_PATH, SUB_ID, "anat", f"{SUB_ID}_T1w.nii.gz")
 t1_img = nib.load(t1_path)
 t1_data = t1_img.get_fdata().astype(np.float32) # получили трехмерный массив чисел - интенсивность вокселей
-print(f"  T1w: {t1_data.shape}")
 
 # BOLD контраст (CALC vs CONTROL) в T2-пространстве
 contrast_path = os.path.join(
@@ -43,7 +41,6 @@ contrast_path = os.path.join(
 )
 contrast_img = nib.load(contrast_path)
 contrast_data = contrast_img.get_fdata().astype(np.float32)  # Загрузили карту контраста CALC - CONTROL
-print(f"  BOLD контраст: {contrast_data.shape}")
 
 # Количественные карты в T1w-пространстве (используем оригинальные)
 calc_cbf_path = os.path.join(BASE_PATH, "derivatives", SUB_ID, "qmri",
@@ -61,7 +58,6 @@ calc_cbf = nib.load(calc_cbf_path).get_fdata().astype(np.float32)
 ctrl_cbf = nib.load(ctrl_cbf_path).get_fdata().astype(np.float32)
 calc_cmro2 = nib.load(calc_cmro2_path).get_fdata().astype(np.float32)
 ctrl_cmro2 = nib.load(ctrl_cmro2_path).get_fdata().astype(np.float32)
-print("  Количественные карты загружены.")
 
 # ----------------------------------------------------------------------
 # 2. ПРИВЕДЕНИЕ ФОРМ
@@ -76,7 +72,6 @@ if calc_cbf.shape != t1_data.shape:
 # ----------------------------------------------------------------------
 # 3. РЕСЕМПЛИНГ BOLD В ПРОСТРАНСТВО T1w
 # ----------------------------------------------------------------------
-print("  Ресемплинг BOLD в T1w...")
 
 #Переводим BOLD в пространство T1w
 contrast_resampled_img = resample_to_img(contrast_img, t1_img, interpolation='linear')
@@ -91,7 +86,6 @@ print(f"  Сохранён: {out_contrast}")
 # 4. АБСОЛЮТНЫЕ ИЗМЕНЕНИЯ
 # ----------------------------------------------------------------------
 delta_cmro2_abs = calc_cmro2 - ctrl_cmro2 # считаем абсолютное изменение cmro2
-# (CBF нам не нужен для упрощённого правила, но оставим для информации)
 
 # ----------------------------------------------------------------------
 # 5. МАСКА МОЗГА И МАСКА АКТИВНЫХ ВОКСЕЛЕЙ
@@ -112,7 +106,7 @@ mask_active = (np.abs(contrast_t1w) > Z_THRESH) & brain_mask # отбросим 
 print(f"  Активных вокселей: {np.sum(mask_active)}")
 
 # ----------------------------------------------------------------------
-# 6. КЛАССИФИКАЦИЯ (УПРОЩЁННОЕ ПРАВИЛО)
+# 6. КЛАССИФИКАЦИЯ
 # ----------------------------------------------------------------------
 label_map = np.zeros_like(t1_data, dtype=np.uint8) # итоговая карта разметки
 num_concordant = 0

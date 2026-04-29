@@ -3,7 +3,7 @@ import numpy as np
 import nibabel as nib
 from nilearn.image import resample_to_img
 
-SUB_ID = "sub-p023"
+SUB_ID = "sub-p019"
 
 BASE_PATH = "./ds004873"
 OUTPUT_DIR = "./labels"
@@ -94,9 +94,21 @@ delta_cmro2_abs = calc_cmro2 - ctrl_cmro2 # считаем абсолютное 
 # (CBF нам не нужен для упрощённого правила, но оставим для информации)
 
 # ----------------------------------------------------------------------
-# 5. МАСКА АКТИВНЫХ ВОКСЕЛЕЙ
+# 5. МАСКА МОЗГА И МАСКА АКТИВНЫХ ВОКСЕЛЕЙ
 # ----------------------------------------------------------------------
-mask_active = np.abs(contrast_t1w) > Z_THRESH # отбросим незначимые слабоактивные воксели, чтобы получить только достоверно определенные
+
+brain_mask_path = os.path.join( BASE_PATH, "derivatives", SUB_ID, "anat", f"{SUB_ID}_desc-fmriprep_brain_mask.nii.gz")
+brain_mask_img = nib.load(brain_mask_path)
+brain_mask = brain_mask_img.get_fdata().astype(bool)
+
+# Если форма маски не совпадает с T1w, ресемплируем её к T1w
+if brain_mask.shape != t1_data.shape:
+    print("  Ресемплинг маски мозга к T1w...")
+    brain_mask = resample_to_img(brain_mask_img, t1_img, interpolation='nearest').get_fdata().astype(bool)
+else:
+    print("  Маска мозга загружена, форма совпадает.")
+
+mask_active = (np.abs(contrast_t1w) > Z_THRESH) & brain_mask # отбросим незначимые слабоактивные воксели, чтобы получить только достоверно определенные
 print(f"  Активных вокселей: {np.sum(mask_active)}")
 
 # ----------------------------------------------------------------------
@@ -130,6 +142,7 @@ for idx in zip(*np.where(mask_active)):
 total = num_concordant + num_discordant
 print(f"  Конкордантных: {num_concordant}")
 print(f"  Дискордантных: {num_discordant}")
+print(f" Вего прошли фильтрацию: {num_discordant + num_concordant}")
 if total > 0:
     print(f"  Доля дискордантных: {num_discordant / total * 100:.1f}%")
 
